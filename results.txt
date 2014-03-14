@@ -1,0 +1,43 @@
+Results of 100,000 games for each strategy. Each line is
+the highest tile seen in that game, and then how many
+games got that high tile.
+
+// makes a legal move at random.
+moveRandom:
+    // 8:	3
+    // 16:	333
+    // 32:	7317
+    // 64:	38770
+    // 128:	46623
+    // 256:	6940
+    // 512:	14
+
+// move down unless impossible, then left, then right, etc.
+moveSimple:
+    // 16:	7
+    // 32:	697
+    // 64:	8962
+    // 128:	39316
+    // 256:	46421
+    // 512:	4594
+    // 1024:	3
+
+// takes the move that results in the highest score
+moveCombine:
+    // 16:	5
+    // 32:	257
+    // 64:	5982
+    // 128:	34726
+    // 256:	46257
+    // 512:	12674
+    // 1024:	99
+
+// same as above, but avoids using up unless it's the last legal move
+moveCombineDown:
+    // 16:	3
+    // 32:	290
+    // 64:	5886
+    // 128:	35257
+    // 256:	45891
+    // 512:	12563
+    // 1024:	110

@@ -1,6 +1,7 @@
 
 
 function Board(that) {
+    this.score = -1;  // unknown
     this.board = [
         0,0,0,0,
         0,0,0,0,
@@ -121,6 +122,9 @@ Board.prototype.getFloor_ = function(x, y) {
 
 // Returns the score for this board
 Board.prototype.getScore = function() {
+    if (this.score != -1) {
+        return this.score;
+    }
     // 2=2 = 2^1 = 2
     // 4=2*2 + 4 = 2^2 * 2 = 8
     // 8=2*4 + 4*2 + 8 = 2^3 * 3 = 24
@@ -134,7 +138,8 @@ Board.prototype.getScore = function() {
             score += Math.floor(Math.log(value) / Math.log(2)) * value;
         }
     }
-    return score;
+    this.score = score;
+    return this.score;
 };
 
 // Returns the number of free cells
@@ -239,30 +244,20 @@ function moveCombine(board) {
     // 256:	46257
     // 512:	12674
     // 1024:	99
-    var down   = board.packDown();
-    var up     = board.packUp();
-    var left   = board.packLeft();
-    var right  = board.packRight();
-    var ds = (down  == board) ? -1 : down.getScore();
-    var us = (up    == board) ? -1 : up.getScore();
-    var ls = (left  == board) ? -1 : left.getScore();
-    var rs = (right == board) ? -1 : right.getScore();
-
-    if (ds == -1 && us == -1 && ls == -1 && rs == -1) {
-        return null;  // no moves
-
-    } else if (ds >= us && ds >= ls && ds >= rs) {
-        return {board: down};
-
-    } else if (ls >= us && ls >= ds && ls >= rs) {
-        return {board: left};
-
-    } else if (rs >= us && rs >= ds && rs >= ls) {
-        return {board: right};
-    } else {
-        return {board: up};  // TODO: i bet this is a bad idea
-    }
+    var moves = getMoves(board);
+    var scores = getScores(moves);
+    var best = getBest(moves, scores);
+    return best ? {board: best} : null;
 }
+
+
+function moveRobey(board) {
+    // Choose the highest of:
+    // - one move lookahead puts high pieces next to each other (down, left, right)
+    // - combine high tiles with a down, left, right
+
+};
+
 
 
 
@@ -275,32 +270,85 @@ function moveCombineDown(board) {
     // 256:	45891
     // 512:	12563
     // 1024:	110
-    var down   = board.packDown();
-    var up     = board.packUp();
-    var left   = board.packLeft();
-    var right  = board.packRight();
-    var ds = (down  == board) ? -1 : down.getScore();
-    var us = (up    == board) ? -1 : 0;  // never do up
-    var ls = (left  == board) ? -1 : left.getScore();
-    var rs = (right == board) ? -1 : right.getScore();
+    var moves = getMoves(board);
+    var scores = getScores(moves);
+    scores[3] = 0;  // always punish the up move
+    var best = getBest(moves, scores);
+    return best ? {board: best} : null;
+}
 
-    if (ds == -1 && us == -1 && ls == -1 && rs == -1) {
-        return null;  // no moves
-
-    } else if (ds == -1 && us == 0 && ls == -1 && rs == -1) {
-        return {board: up};  // only move up if it's the only move
-
-    } else if (ds >= ls && ds >= rs) {
-        return {board: down};
-
-    } else if (ls >= ds && ls >= rs) {
-        return {board: left};
-
-    } else if (rs >= ds && rs >= ls) {
-        return {board: right};
-    } else {
-        throw new Error("NEver happens");
+// Returns an array of the 4 moves. Up is always last. Null if the move was illegal.
+function getMoves(board) {
+    var results = [
+        board.packDown(),
+        board.packLeft(),
+        board.packRight(),
+        board.packUp()
+    ];
+    for (var i = 0; i < results.length; i++) {
+        if (results[i] == board) {
+            results[i] = null;  // no move was possible.
+        }
     }
+    return results;
+}
+
+// Returns an array of the scores of each board
+function getScores(boards) {
+    var scores = [];
+    for (var i = 0; i < boards.length; i++) {
+        scores.push(boards[i] ? boards[i].getScore() : -1);
+    }
+    return scores;
+}
+
+// Returns the board with the best score.
+function getBest(boards, scores) {
+    var bestBoard = null;
+    var bestScore = -100;
+    for (var i = 0; i < boards.length; i++) {
+        if (bestScore < scores[i]) {
+            bestBoard = boards[i];
+            bestScore = scores[i];
+        }
+    }
+    return bestBoard;
+}
+
+
+
+
+// looks ahead one move and chooses the best two-move outcome.
+function moveLookahead(board) {
+    // 64:	1
+    // 128:	126
+    // 256:	1724
+    // 512:	5803
+    // 1024:	2339
+    // 2048:	7
+    var moves = getMoves(board);
+    var bests = [];
+    for (var i = 0; i < moves.length; i++) {
+        if (moves[i]) {
+            var ms = getMoves(moves[i]);
+            var ss = getScores(ms);
+            bests.push(getBest(ms, ss));
+        } else {
+            bests.push(null);
+        }
+    }
+
+    // choose the best best
+    var bs = getScores(bests);
+    var best2 = getBest(bests, getScores(bests));  // double compute
+
+    // find which move corresponded to best2
+    for (var i = 0; i < bests.length; i++) {
+        if (bests[i] == best2) {
+            return moves[i] ? {board: moves[i]} : moveCombineDown(board);
+        }
+    }
+    return null;
 }
 
 
@@ -355,7 +403,7 @@ function moveRandom(board) {
 
 
 
-function play() {
+function play(ai) {
     // Simulate a game
 
     var board = new Board();
@@ -366,7 +414,7 @@ function play() {
         board.setRandomCell(Math.random() < 0.9 ? 2 : 4);
         console.log("Add cell:\n" + board);
 
-        var result = move(board);
+        var result = ai(board);
         if (result) {
             console.log(result.action);
             board = result.board;
@@ -437,6 +485,6 @@ function playHistogram(ai, games) {
 
 
 
-playHistogram(moveCombineDown, 100000);
+playHistogram(moveLookahead, 10000);
 //testTransform();
-//play();
+//play(moveLookahead);

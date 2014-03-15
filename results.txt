@@ -41,3 +41,15 @@ moveCombineDown:
     // 256:	45891
     // 512:	12563
     // 1024:	110
+
+// does moveCombine twice, and takes the move that leads to the best
+// score after the second move
+moveLookahead:
+    // 64:	1
+    // 128:	126
+    // 256:	1724
+    // 512:	5803
+    // 1024:	2339
+    // 2048:	7
+
+
